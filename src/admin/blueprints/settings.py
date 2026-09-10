@@ -305,15 +305,14 @@ def update_general(tenant_id):
                     )
                     db_session.add(limit)
 
+            # Longitude divergence 11: these two checkboxes live in #business-rules-form (Policies &
+            # Workflows), NOT in #account-settings-form. Upstream reset both to False whenever they
+            # were absent from the POST -- i.e. on EVERY Account save -- silently disabling human
+            # review of media buys. Only touch them when the submitting form actually carries them.
             if "enable_axe_signals" in request.form:
                 tenant.enable_axe_signals = request.form.get("enable_axe_signals") == "on"
-            else:
-                tenant.enable_axe_signals = False
-
             if "human_review_required" in request.form:
                 tenant.human_review_required = request.form.get("human_review_required") == "on"
-            else:
-                tenant.human_review_required = False
 
             tenant.updated_at = datetime.now(UTC)
             db_session.commit()
