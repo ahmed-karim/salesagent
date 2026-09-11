@@ -379,6 +379,9 @@ def callback():
             session["user"] = user.email
             session["user_name"] = user.name or user.email
             session["tenant_id"] = tenant_id
+            session["is_tenant_admin"] = user.role == "admin"
+            # Longitude divergence 14: see auth.py -- policy.update keys on session["role"].
+            session["role"] = "tenant_admin" if user.role == "admin" else "tenant_user"
             session["authenticated"] = True
             session["auth_method"] = "oidc"
 

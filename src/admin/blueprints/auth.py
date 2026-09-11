@@ -645,6 +645,10 @@ def google_callback():
 
             session["tenant_id"] = tenant_id
             session["is_tenant_admin"] = membership.get("is_admin", True)
+            # policy.update and the tenant-scoped checks key on session["role"], which only
+            # test-auth and the super-admin branch set; without it every SSO tenant admin gets
+            # 403 saving policy.
+            session["role"] = "tenant_admin" if membership.get("is_admin", True) else "tenant_user"
             session.pop("available_tenants", None)
             flash(f"Welcome {user.get('name', email)}!", "success")
             # Check for saved redirect URL
@@ -708,6 +712,7 @@ def select_tenant():
 
                 session["tenant_id"] = tenant_id
                 session["is_tenant_admin"] = membership["is_admin"]
+                session["role"] = "tenant_admin" if membership["is_admin"] else "tenant_user"
                 session.pop("available_tenants", None)  # Clean up
                 flash(f"Welcome to {membership['name']}!", "success")
                 # Check for saved redirect URL
