@@ -9,6 +9,7 @@ from flask import Blueprint, jsonify, render_template, request, session
 from googleads import ad_manager, oauth2
 from sqlalchemy import select
 
+from src.adapters.gam import GAMClientManager, build_gam_config_from_adapter
 from src.adapters.gam_inventory_discovery import GAMInventoryDiscovery
 from src.adapters.gam_reporting_service import GAMReportingService
 from src.admin.utils import require_tenant_access
@@ -642,18 +643,13 @@ def get_gam_custom_targeting_keys(tenant_id):
             if gam_error:
                 return jsonify({"error": gam_error}), 400
 
-            # Create OAuth2 client
-            gam_auth = get_settings().auth
-            oauth2_client = oauth2.GoogleRefreshTokenClient(
-                client_id=gam_auth.gam_oauth_client_id,
-                client_secret=gam_auth.gam_oauth_client_secret,
-                refresh_token=adapter_config.gam_refresh_token,
-            )
-
-            # Create GAM client
-            client = ad_manager.AdManagerClient(
-                oauth2_client, "Prebid Sales Agent", network_code=adapter_config.gam_network_code
-            )
+            # Build the client the same way the adapter does, so BOTH auth methods work.
+            # This route used to construct an OAuth refresh-token client unconditionally
+            # and failed with "credentials do not contain the necessary fields" for every
+            # tenant authenticated with a service-account key.
+            client = GAMClientManager(
+                build_gam_config_from_adapter(adapter_config), adapter_config.gam_network_code
+            ).get_client()
 
             # Initialize GAM inventory discovery
             discovery = GAMInventoryDiscovery(client=client, tenant_id=tenant_id)
