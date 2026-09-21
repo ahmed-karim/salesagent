@@ -9,7 +9,7 @@ import asyncio
 import json
 import logging
 import re
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -432,6 +432,25 @@ def _canonical_a2a_url(headers) -> str | None:
     return identity.endpoints["a2a"] if identity else None
 
 
+def _brand_card(card, headers: Mapping[str, str]):
+    """Give *card* the publisher's name, not the software's.
+
+    The static card only knows the product name ("Prebid Sales Agent"); a buyer agent
+    reading the card should see whose inventory it is talking to. Best effort: the card
+    must never 500 because the tenant lookup failed, so that keeps the static name.
+    """
+    try:
+        tenant = route_landing_page(dict(headers)).tenant
+    except Exception:
+        logger.warning("Agent card: tenant lookup failed, serving the static name", exc_info=True)
+        return card
+    tenant_name = (tenant or {}).get("name")
+    if tenant_name:
+        card.name = tenant_name
+        card.description = f"{tenant_name} advertising sales agent (AdCP media_buy protocol)"
+    return card
+
+
 def _create_dynamic_agent_card(request: Request):
     """Create agent card with the tenant's canonical A2A URL.
 
@@ -460,7 +479,7 @@ def _create_dynamic_agent_card(request: Request):
 
     server_url = _canonical_a2a_url(request.headers)
     if server_url is not None:
-        return _card_with_url(server_url)
+        return _brand_card(_card_with_url(server_url), request.headers)
 
     apx_incoming_host = _get_header_case_insensitive(request.headers, "Apx-Incoming-Host")
     if apx_incoming_host and not _is_valid_hostname(apx_incoming_host):
@@ -481,7 +500,7 @@ def _create_dynamic_agent_card(request: Request):
         else:
             server_url = get_a2a_server_url() or "http://localhost:8080/a2a"
 
-    return _card_with_url(server_url)
+    return _brand_card(_card_with_url(server_url), request.headers)
 
 
 # Override the SDK's static agent card endpoints with dynamic ones.

@@ -74,8 +74,9 @@ class TestA2AEndpointsActual:
             assert not url.endswith("/"), f"Agent card URL should not have trailing slash: {url}"
             assert url.endswith("/a2a"), f"Agent card URL should end with '/a2a': {url}"
 
-            # Should be Prebid Sales Agent
-            assert data["name"] == "Prebid Sales Agent"
+            # The served card carries the tenant's name when one resolves
+            # (single-tenant fallback), else the static "Prebid Sales Agent".
+            assert data["name"], "Agent card must carry a non-empty name"
 
             # Should have skills
             assert "skills" in data
@@ -106,7 +107,7 @@ class TestA2AEndpointsActual:
         if response.status_code == 200:
             assert response.headers["content-type"].startswith("application/json")
             data = response.json()
-            assert data["name"] == "Prebid Sales Agent"
+            assert data["name"], "Agent card must carry a non-empty name"
 
             # Same URL validation as the well-known endpoint. a2a-sdk 1.0
             # (protobuf) puts the endpoint in supportedInterfaces, NOT top-level:
