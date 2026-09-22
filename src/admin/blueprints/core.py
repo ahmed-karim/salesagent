@@ -17,7 +17,7 @@ from flask import (
 )
 from sqlalchemy import select, text
 
-from src.admin.utils import require_auth
+from src.admin.utils import require_auth, signed_in_user_is_super_admin
 from src.admin.utils.audit_decorator import log_admin_action
 from src.admin.utils.operator_errors import safe_error_message
 from src.core.config import get_settings
@@ -538,9 +538,11 @@ def send_static(path):
 @log_admin_action("reactivate_tenant")
 def reactivate_tenant(tenant_id):
     """Reactivate a deactivated tenant (super admin only)."""
+    danger_zone = url_for("tenants.tenant_settings", tenant_id=tenant_id, section="danger-zone")
     try:
-        # Verify super admin
-        if session.get("role") != "super_admin":
+        # A super admin who signed in through tenant SSO carries a tenant role, not
+        # "super_admin", so the check is by identity rather than session["role"].
+        if not signed_in_user_is_super_admin():
             flash("Only super admins can reactivate tenants", "error")
             return redirect(url_for("core.index"))
 
@@ -554,7 +556,7 @@ def reactivate_tenant(tenant_id):
             # Already active?
             if tenant.is_active:
                 flash(f"Tenant '{tenant.name}' is already active", "warning")
-                return redirect(url_for("core.index"))
+                return redirect(danger_zone)
 
             # Reactivate tenant
             tenant.is_active = True
@@ -566,9 +568,9 @@ def reactivate_tenant(tenant_id):
             )
 
             flash(f"Sales agent '{tenant.name}' has been reactivated successfully", "success")
-            return redirect(url_for("core.index"))
+            return redirect(danger_zone)
 
     except Exception as e:
         logger.error(f"Error reactivating tenant {tenant_id}: {e}", exc_info=True)
         flash(f"Error reactivating sales agent: {safe_error_message(e)}", "error")
-        return redirect(url_for("core.index"))
+        return redirect(danger_zone)

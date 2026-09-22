@@ -214,6 +214,20 @@ def is_super_admin(email):
     return False
 
 
+def signed_in_user_is_super_admin() -> bool:
+    """Whether the signed-in user is a super admin, whichever login they used.
+
+    ``session["role"]`` is "super_admin" only after the global login's super-admin branch or
+    test auth; a super admin who signed in through tenant SSO carries a tenant role, so the
+    email is checked as well, exactly as ``require_tenant_access`` does.
+    """
+    if session.get("role") == "super_admin":
+        return True
+    user_info = session.get("user")
+    email = user_info.get("email", "") if isinstance(user_info, dict) else str(user_info or "")
+    return is_super_admin(email)
+
+
 def _cache_admin_status(email, is_admin):
     """Cache admin status in session if available."""
     try:

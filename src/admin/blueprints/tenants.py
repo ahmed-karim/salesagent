@@ -17,7 +17,7 @@ from sqlalchemy import func, select
 
 from src.admin.form_validation import sanitize_form_data, validate_form_data
 from src.admin.services import DashboardService
-from src.admin.utils import get_tenant_config_from_db, require_tenant_access
+from src.admin.utils import get_tenant_config_from_db, require_tenant_access, signed_in_user_is_super_admin
 from src.admin.utils.audit_decorator import log_admin_action
 from src.core.config import get_settings
 from src.core.config_loader import is_single_tenant_mode
@@ -422,6 +422,7 @@ def tenant_settings(tenant_id, section=None):
                 setup_status=setup_status,
                 available_currencies=available_currencies,  # Currency list from Babel
                 single_tenant_mode=is_single_tenant_mode(),
+                viewer_is_super_admin=signed_in_user_is_super_admin(),
             )
 
     except Exception as e:
@@ -564,26 +565,13 @@ def deactivate_tenant(tenant_id):
             # Log to application logs
             logger.info(f"Tenant {tenant_id} ({tenant.name}) deactivated by user {session.get('user', 'unknown')}")
 
-            # Create audit log entry for compliance
-            from src.core.audit_logger import AuditLogger
+            # The audit row is written by @log_admin_action (AuditLogger has no log_security_event).
+            # A super admin can still sign in and reactivate, so they stay on the page; anyone
+            # else has just lost access to this tenant, so their session ends.
+            if signed_in_user_is_super_admin():
+                flash(f"Sales agent '{tenant.name}' has been deactivated. All data is preserved.", "warning")
+                return redirect(url_for("tenants.tenant_settings", tenant_id=tenant_id, section="danger-zone"))
 
-            try:
-                audit_logger = AuditLogger(tenant_id)
-                audit_logger.log_security_event(
-                    event_type="tenant_deactivation",
-                    severity="critical",
-                    user_email=session.get("user", "unknown"),
-                    details={
-                        "tenant_name": tenant.name,
-                        "deactivated_at": datetime.now(UTC).isoformat(),
-                        "deactivated_by": session.get("user", "unknown"),
-                    },
-                )
-            except Exception as e:
-                # Don't fail deactivation if audit logging fails
-                logger.error(f"Failed to create audit log for deactivation: {e}")
-
-            # Clear session and redirect to login
             session.clear()
             flash(
                 f"Sales agent '{tenant.name}' has been deactivated. "

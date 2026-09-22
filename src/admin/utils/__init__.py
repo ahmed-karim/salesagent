@@ -16,6 +16,7 @@ from src.admin.utils.helpers import (
     parse_json_config,
     require_auth,
     require_tenant_access,
+    signed_in_user_is_super_admin,
     test_login_composed,
     translate_custom_targeting,
     validate_gam_network_response,
@@ -32,6 +33,7 @@ __all__ = [
     "is_tenant_admin",
     "require_auth",
     "require_tenant_access",
+    "signed_in_user_is_super_admin",
     "test_login_composed",
     # Utility functions
     "parse_json_config",

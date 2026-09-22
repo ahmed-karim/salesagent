@@ -500,7 +500,8 @@
             <span>Advertisers</span>
         </a>
 
-        {% if not single_tenant_mode %}
+        {# Single-tenant: only a super admin, who can still sign in and reactivate, may deactivate #}
+        {% if not single_tenant_mode or viewer_is_super_admin %}
         <div class="settings-nav-separator"></div>
 
         <a class="settings-nav-item" data-section="danger-zone">
@@ -2703,17 +2704,18 @@ result = await client.tools.get_products(brief="video ads")</pre>
                 </p>
             </div>
 
+            {% if tenant.is_active %}
             <div class="form-section" style="border: 2px solid #dc2626; border-radius: 8px; padding: 1.5rem; background: #fef2f2;">
                 <h3 style="color: #991b1b;">Deactivate Sales Agent</h3>
                 <p style="color: #7f1d1d; margin-bottom: 1rem;">
                     Deactivating your sales agent will:
                 </p>
                 <ul style="color: #7f1d1d; margin-bottom: 1.5rem;">
-                    <li>Stop all active media buys immediately</li>
-                    <li>Disable API access for all principals</li>
-                    <li>Hide this tenant from all user dashboards</li>
-                    <li>Prevent new signups or logins</li>
-                    <li><strong>Preserve all data</strong> - you can reactivate later by contacting support</li>
+                    <li>Refuse every buyer request (MCP, A2A and REST)</li>
+                    <li>Pause delivery reporting to buyers and the execution of approved media buys</li>
+                    <li>Leave line items already in your ad server running &mdash; pause those there</li>
+                    <li>Hide this tenant from members who are not super admins, so they cannot sign in</li>
+                    <li><strong>Preserve all data</strong> &mdash; {% if viewer_is_super_admin %}you can reactivate it here{% else %}it can be reactivated by contacting support{% endif %}</li>
                 </ul>
 
                 <form id="deactivate-form" method="POST" action="{{ request.script_root }}/tenant/{{ tenant.tenant_id }}/deactivate" onsubmit="return confirmDeactivation()">
@@ -2731,14 +2733,24 @@ result = await client.tools.get_products(brief="video ads")</pre>
                     </button>
                 </form>
             </div>
-
-            {% if not tenant.is_active %}
+            {% else %}
             <div class="form-section" style="border: 2px solid #059669; border-radius: 8px; padding: 1.5rem; background: #f0fdf4;">
                 <h3 style="color: #065f46;">Sales Agent Currently Inactive</h3>
+                {% if viewer_is_super_admin %}
+                <p style="color: #047857; margin-bottom: 1rem;">
+                    This sales agent is deactivated: buyers are refused. Reactivating serves them again on their next request.
+                </p>
+                <form id="reactivate-form" method="POST" action="{{ url_for('core.reactivate_tenant', tenant_id=tenant.tenant_id) }}">
+                    <button type="submit" class="btn" style="background: #059669; color: white;">
+                        Reactivate Sales Agent
+                    </button>
+                </form>
+                {% else %}
                 <p style="color: #047857; margin-bottom: 1rem;">
                     This sales agent is currently deactivated. To reactivate, please contact support at
                     <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
                 </p>
+                {% endif %}
             </div>
             {% endif %}
         </div>
