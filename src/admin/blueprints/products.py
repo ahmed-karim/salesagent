@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import re
 import uuid
 from decimal import Decimal
 
@@ -21,6 +22,7 @@ from src.core.database.models import PersistedMediaBuyStatus, PricingOption, Pro
 from src.core.database.product_pricing import get_product_pricing_options
 from src.core.database.repositories.media_buy import MediaBuyRepository
 from src.core.database.repositories.principal import PrincipalRepository
+from src.core.database.repositories.product import ProductRepository
 from src.core.schemas import Format
 from src.services.gam_product_config_service import GAMProductConfigService
 
@@ -619,6 +621,12 @@ def list_products(tenant_id):
         return redirect(url_for("tenants.dashboard", tenant_id=tenant_id))
 
 
+# A product_id is buyer-visible (get_products, every create_media_buy package) and immutable once
+# created, so it is restricted to characters that survive URLs, GAM names and copy-paste.
+_PRODUCT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$")
+_PRODUCT_ID_RULE = "Product ID may only contain letters, numbers, hyphens and underscores (up to 100 characters)"
+
+
 def _render_add_product_form(tenant_id, tenant, adapter_type, currencies, form_data=None):
     """Helper to render add product form with optional preserved form data.
 
@@ -747,6 +755,24 @@ def add_product(tenant_id):
                 return _render_add_product_form(tenant_id, tenant, adapter_type, currencies, form_data)
 
             with get_db_session() as db_session:
+                # Product ID: optional on the form, buyer-visible and immutable once saved.
+                requested_product_id = form_data.get("product_id", "")
+                if requested_product_id and not _PRODUCT_ID_PATTERN.match(requested_product_id):
+                    flash(_PRODUCT_ID_RULE, "error")
+                    return _render_add_product_form(tenant_id, tenant, adapter_type, currencies, form_data)
+                # The ID is the primary key per tenant; a reused one would otherwise be a raw database error.
+                taken = (
+                    ProductRepository(db_session, tenant_id).get_by_id(requested_product_id)
+                    if requested_product_id
+                    else None
+                )
+                if taken:
+                    flash(
+                        f"Product ID '{requested_product_id}' is already used by '{taken.name}'. Choose a different ID.",
+                        "error",
+                    )
+                    return _render_add_product_form(tenant_id, tenant, adapter_type, currencies, form_data)
+
                 # Parse formats - expecting JSON string with FormatReference objects
                 # Supports both legacy format {agent_url, format_id} and new parameterized format
                 # {agent_url, id, width?, height?, duration_ms?}
@@ -952,7 +978,7 @@ def add_product(tenant_id):
 
                 # Build product kwargs, excluding None values for JSON fields that have database constraints
                 product_kwargs = {
-                    "product_id": form_data.get("product_id") or f"prod_{uuid.uuid4().hex[:8]}",
+                    "product_id": requested_product_id or f"prod_{uuid.uuid4().hex[:8]}",
                     "tenant_id": tenant_id,
                     "name": form_data["name"],
                     "description": form_data.get("description", ""),

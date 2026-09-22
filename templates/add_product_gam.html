@@ -36,6 +36,30 @@
         </div>
 
         <div class="form-group">
+            {% if product %}
+            <label for="product_id">Product ID</label>
+            <input type="text" id="product_id" value="{{ product.product_id }}" readonly disabled
+                   style="background: #f3f4f6; color: #374151; font-family: monospace;">
+            <small style="color: #666;">
+                Fixed once created: buyers reference this ID in every media buy.
+            </small>
+            {% else %}
+            <label for="product_id">Product ID <span style="font-weight: normal; color: #666;">(optional)</span></label>
+            <input type="text" id="product_id" name="product_id" maxlength="100"
+                   pattern="[A-Za-z0-9][A-Za-z0-9_\-]*"
+                   title="Letters, numbers, hyphens and underscores only"
+                   placeholder="Leave blank to auto-generate (e.g., prod_3f9a1c2e)"
+                   value="{{ form_data.product_id if form_data else '' }}"
+                   style="font-family: monospace;">
+            <small style="color: #666;">
+                Buyers see this ID and reference it in every media buy, and it cannot be changed later.
+                Use something readable, e.g. <code>homepage_takeover</code>. It must be unique; the form
+                tells you on save if it is already taken.
+            </small>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
             <label for="description">Description</label>
             <textarea id="description" name="description" rows="3" placeholder="Describe this product for potential buyers">{{ form_data.description if form_data else (product.description if product else '') }}</textarea>
             <small style="color: #666;" id="description-product-note" style="display: none;">
