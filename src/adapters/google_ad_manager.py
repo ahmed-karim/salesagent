@@ -494,6 +494,7 @@ class GoogleAdManager(AdServerAdapter):
                     logger.info(f"Final impl_config for {package.package_id}: {impl_config}")
                     products_map[package.package_id] = {
                         "product_id": product.product_id,
+                        "name": product.name,  # {product_name} in line item names
                         "implementation_config": impl_config,
                         "delivery_type": product.delivery_type,
                     }

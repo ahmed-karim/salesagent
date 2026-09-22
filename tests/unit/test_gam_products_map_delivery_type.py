@@ -129,6 +129,7 @@ def test_products_map_includes_delivery_type():
     """
     mock_product = Mock()
     mock_product.product_id = "prod_abc"
+    mock_product.name = "Homepage Takeover"
     mock_product.delivery_type = "guaranteed"
     mock_product.implementation_config = {"targeted_ad_unit_ids": ["12345"]}
     # Products without an inventory profile return their own config here (models.py).
@@ -137,12 +138,12 @@ def test_products_map_includes_delivery_type():
     captured_products_map = _run_create_media_buy(mock_product)
 
     # Assert: products_map entry has exactly the keys that orders.py consumes.
-    # orders.py reads: implementation_config (line 413), product_id (line 738), delivery_type (line 771).
+    # orders.py reads: implementation_config, product_id and name (line item naming), delivery_type.
     # If you add a new .get() in orders.py, add the key here too.
     assert "pkg_prod_abc_001" in captured_products_map, "Package should be in products_map"
     product_entry = captured_products_map["pkg_prod_abc_001"]
 
-    expected_keys = {"product_id", "implementation_config", "delivery_type"}
+    expected_keys = {"product_id", "name", "implementation_config", "delivery_type"}
     assert set(product_entry.keys()) == expected_keys, (
         f"products_map entry has unexpected shape. "
         f"Expected keys: {expected_keys}, got: {set(product_entry.keys())}. "
@@ -151,6 +152,9 @@ def test_products_map_includes_delivery_type():
 
     # Verify values are correct (not None or wrong type)
     assert product_entry["product_id"] == "prod_abc"
+    # The seller's display name reaches the {product_name} naming placeholder; before this key
+    # existed, orders.py fell back to the product_id and GAM line items were called "prod_abc".
+    assert product_entry["name"] == "Homepage Takeover"
     assert product_entry["delivery_type"] == "guaranteed"
     assert isinstance(product_entry["implementation_config"], dict)
 

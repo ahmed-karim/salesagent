@@ -732,8 +732,10 @@ class GAMOrdersManager:
             from src.adapters.gam.utils.naming import truncate_name_with_suffix
             from src.core.utils.naming import apply_naming_template, build_line_item_name_context
 
-            # Get product name from database for template
-            product_name = product.get("product_id", package.name) if product else package.name
+            # The seller's display name; older products_map builders carried only the ID.
+            product_name = (
+                (product.get("name") or product.get("product_id") or package.name) if product else package.name
+            )
 
             line_item_name_context = build_line_item_name_context(
                 order_name=order_name or f"Order {order_id}",
