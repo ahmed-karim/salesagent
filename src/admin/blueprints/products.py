@@ -1067,6 +1067,11 @@ def add_product(tenant_id):
                 # Handle property authorization (AdCP requirement)
                 # Default to empty property_tags if not specified (satisfies DB constraint)
                 property_mode = form_data.get("property_mode", "tags")
+                if product_kwargs.get("inventory_profile_id"):
+                    # The inventory profile owns publisher properties (Product.effective_properties
+                    # returns the profile's list, never the product's own), and the form hides the
+                    # selector once a profile is chosen, so no product-level selection is required.
+                    property_mode = "inventory_profile"
                 if property_mode == "tags":
                     # Get selected property tags (format: "domain:tag")
                     selected_tags = request.form.getlist("selected_property_tags")
@@ -1528,6 +1533,10 @@ def edit_product(tenant_id, product_id):
 
                 # Handle publisher properties (AdCP requirement)
                 property_mode = form_data.get("property_mode", "tags")
+                if product.inventory_profile_id:
+                    # Profile-owned (see add_product): the selector is hidden, keep the product's own
+                    # columns as they are rather than reading an empty, invisible form section.
+                    property_mode = "inventory_profile"
                 if property_mode == "tags":
                     # Get selected property tags (format: "domain:tag")
                     selected_tags = request.form.getlist("selected_property_tags")

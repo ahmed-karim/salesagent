@@ -257,13 +257,16 @@ Target users based on local weather conditions for maximum relevance.</div>
             </div>
         </div>
 
-        <!-- Publisher Properties -->
+        <!-- Publisher Properties: hidden while an inventory profile is selected, because the
+             profile's publisher properties are what buyers see (Product.effective_properties). -->
+        <div id="publisher-properties-section" style="display: {% if (form_data and form_data.inventory_profile_id) or (product and product.inventory_profile_id) %}none{% else %}block{% endif %};">
         <h3 style="margin-top: 2rem; border-bottom: 2px solid #007bff; padding-bottom: 0.5rem;">Publisher Properties (AdCP)</h3>
         <div class="alert" style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 1rem; margin-bottom: 1rem;">
             <strong>Required:</strong> Specify which properties this product covers so buyers can validate against their authorized properties.
         </div>
 
         {% include 'components/publisher_properties_selector.html' %}
+        </div>
 
         <!-- Principal Access Control -->
         <h3 style="margin-top: 2rem; border-bottom: 2px solid #007bff; padding-bottom: 0.5rem;">Principal Access Control</h3>
@@ -325,6 +328,10 @@ Target users based on local weather conditions for maximum relevance.</div>
                     <div id="profile-preview-description" style="color: #666; font-size: 0.9rem; margin-bottom: 0.75rem;"></div>
                     <div id="profile-preview-details" style="display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.85rem; color: #555;">
                         <!-- Populated by JS -->
+                    </div>
+                    <div style="margin-top: 0.75rem; font-size: 0.85rem; color: #555;">
+                        Inventory, creative formats and publisher properties come from this profile.
+                        Edit the profile to change them.
                     </div>
                 </div>
                 <a href="#" id="profile-preview-edit-link" target="_blank" style="white-space: nowrap; font-size: 0.9rem;">
@@ -1248,6 +1255,7 @@ function handleProfileChange(profileId) {
     const hasProfile = profileId !== '';
     const manualSection = document.getElementById('manual-inventory-section');
     const formatsSection = document.getElementById('creative-formats-section');
+    const propertiesSection = document.getElementById('publisher-properties-section');
     const profilePreview = document.getElementById('inventory-profile-preview');
 
     console.log('Found elements:', {
@@ -1263,6 +1271,7 @@ function handleProfileChange(profileId) {
         console.log('Hiding manual sections, showing profile preview');
         if (manualSection) manualSection.style.display = 'none';
         if (formatsSection) formatsSection.style.display = 'none';
+        if (propertiesSection) propertiesSection.style.display = 'none';
         if (profilePreview) {
             profilePreview.style.display = 'block';
             loadProfilePreview(profileId);
@@ -1272,6 +1281,7 @@ function handleProfileChange(profileId) {
         console.log('Showing manual sections, hiding profile preview');
         if (manualSection) manualSection.style.display = 'block';
         if (formatsSection) formatsSection.style.display = 'block';
+        if (propertiesSection) propertiesSection.style.display = 'block';
         if (profilePreview) profilePreview.style.display = 'none';
     }
 }

@@ -151,6 +151,10 @@
             <div class="form-group">
                 <label>Select Specific Properties *</label>
                 <small style="color: #666; display: block; margin-bottom: 0.5rem;">Select one or more properties from your authorized inventory.</small>
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <button type="button" class="btn btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.85rem;" onclick="setAllPropertyChecks(true)">Select all</button>
+                    <button type="button" class="btn btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.85rem;" onclick="setAllPropertyChecks(false)">Clear</button>
+                </div>
                 {% if authorized_properties and authorized_properties|length > 0 %}
                 <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 0.5rem; background: #fafafa;">
                     {% for prop in authorized_properties %}
@@ -243,6 +247,9 @@ const existingProfile = {
 
 // Load formats from API on page load
 document.addEventListener('DOMContentLoaded', function() {
+    // Publisher properties and the targeting template need nothing from the network: restore
+    // them first, so a slow or failing formats API cannot leave the saved selection looking empty.
+    prePopulateSavedSelections();
     loadFormats().then(() => {
         // Pre-populate data after formats have loaded to avoid race condition
         prePopulateData();
@@ -273,6 +280,10 @@ function prePopulateData() {
         });
     }
 
+    // Publisher properties and targeting template: prePopulateSavedSelections(), before formats load.
+}
+
+function prePopulateSavedSelections() {
     // Pre-populate publisher properties - detect mode and populate appropriate field
     if (existingProfile.publisher_properties && existingProfile.publisher_properties.length > 0) {
         const firstProp = existingProfile.publisher_properties[0];
@@ -474,6 +485,11 @@ function updateHiddenInput() {
     });
 
     document.getElementById('formats-data').value = JSON.stringify(formatRefs);
+}
+
+// Select all / Clear for the property ID checkboxes
+function setAllPropertyChecks(checked) {
+    document.querySelectorAll('input[name="selected_property_ids"]').forEach(box => { box.checked = checked; });
 }
 
 // Property mode toggle

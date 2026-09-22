@@ -2,7 +2,9 @@
 
 Product IDs are buyer-visible (``get_products``, every ``create_media_buy`` package) and the
 per-tenant primary key, yet the GAM add-product form had no field for one and a reused ID
-surfaced as a raw database error.
+surfaced as a raw database error. A product that uses an inventory profile takes its publisher
+properties from the profile (``Product.effective_properties``), so the create form no longer
+demands a product-level selection the buyer would never see.
 
 Real database, real Flask app, real form POSTs; formats are left empty so no creative agent is
 contacted. Tenants use the mock adapter for the POST paths (the handler is adapter-neutral) and
@@ -14,6 +16,7 @@ from sqlalchemy import select
 
 from src.core.database.models import Product
 from tests.factories import AuthorizedPropertyFactory, ProductFactory, TenantFactory
+from tests.factories.inventory_profile import InventoryProfileFactory
 from tests.harness._base import IntegrationEnv
 
 pytestmark = [pytest.mark.integration, pytest.mark.requires_db]
@@ -91,6 +94,24 @@ class TestDuplicatesAreFlaggedOnSave:
             assert resp.status_code == 200
             assert b"already used by" in resp.data
             assert len(_products(env, "pid_dupid")) == 1
+
+
+class TestProfileOwnedProperties:
+    def test_a_profile_based_product_needs_no_product_level_property_selection(self, authenticated_admin_session):
+        """The selector is hidden once a profile is chosen; the handler must not demand it."""
+        with IntegrationEnv(tenant_id="pid_profile") as env:
+            tenant = _tenant("pid_profile")
+            profile = InventoryProfileFactory(tenant=tenant)
+            data = _form(product_id="moments_display", inventory_profile_id=str(profile.id))
+            del data["selected_property_tags"]
+            resp = authenticated_admin_session.post("/tenant/pid_profile/products/add", data=data)
+            assert resp.status_code == 302, resp.data[:500]
+            (product,) = _products(env, "pid_profile")
+            assert product.inventory_profile_id == profile.id
+            # Own columns stay empty (the DB check constraint needs exactly one non-null); buyers
+            # see the profile's publisher properties through effective_properties.
+            assert product.properties is None and product.property_ids is None and product.property_tags == []
+            assert product.effective_properties == profile.publisher_properties
 
 
 class TestGamFormRendering:
