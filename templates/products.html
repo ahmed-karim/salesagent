@@ -79,7 +79,7 @@
                 {% endif %}
 
                 <div class="product-card-content">
-                    <h3 class="product-card-title">{{ product.name }}</h3>
+                    <h3 class="product-card-title">{{ product.name }} {% if product.paused_at %}<span class="badge" style="background: #f59e0b; color: white;" title="Hidden from buyers since {{ product.paused_at.strftime('%Y-%m-%d') }}; new media buys are refused">Paused</span>{% endif %}</h3>
 
                     <div class="product-card-description">
                         {% if product.description %}
@@ -127,6 +127,10 @@
 
                     <div class="product-card-actions">
                         <a href="{{ url_for('products.edit_product', tenant_id=tenant_id, product_id=product.product_id) }}" class="btn btn-secondary btn-sm" style="flex: 1;">Edit</a>
+                        <form method="POST" action="{{ url_for('products.pause_product', tenant_id=tenant_id, product_id=product.product_id) }}" style="margin: 0;">
+                            <input type="hidden" name="paused" value="{{ '0' if product.paused_at else '1' }}">
+                            <button type="submit" class="btn btn-secondary btn-sm" title="{{ 'Buyers see and can buy this product again' if product.paused_at else 'Hide from buyers and refuse new media buys; it stays editable here' }}">{{ 'Resume' if product.paused_at else 'Pause' }}</button>
+                        </form>
                         <button onclick="deleteProduct('{{ product.product_id }}', '{{ product.name }}')" class="btn btn-danger btn-sm" style="background: #dc3545; border-color: #dc3545;">Delete</button>
                     </div>
                 </div>
@@ -162,6 +166,7 @@
                         </span>
                     {% endif %}
                     {{ product.name }}
+                    {% if product.paused_at %}<span class="badge" style="background: #f59e0b; color: white;" title="Hidden from buyers since {{ product.paused_at.strftime('%Y-%m-%d') }}; new media buys are refused">Paused</span>{% endif %}
                     {% if product.is_dynamic_variant and product.activation_key %}
                         <br>
                         <small style="color: #666;">
@@ -274,6 +279,10 @@
                 <td>
                     <div style="display: flex; gap: 0.5rem;">
                         <a href="{{ url_for('products.edit_product', tenant_id=tenant_id, product_id=product.product_id) }}" class="btn btn-secondary btn-sm">Edit</a>
+                        <form method="POST" action="{{ url_for('products.pause_product', tenant_id=tenant_id, product_id=product.product_id) }}" style="margin: 0;">
+                            <input type="hidden" name="paused" value="{{ '0' if product.paused_at else '1' }}">
+                            <button type="submit" class="btn btn-secondary btn-sm" title="{{ 'Buyers see and can buy this product again' if product.paused_at else 'Hide from buyers and refuse new media buys; it stays editable here' }}">{{ 'Resume' if product.paused_at else 'Pause' }}</button>
+                        </form>
                         <button onclick="deleteProduct('{{ product.product_id }}', '{{ product.name }}')" class="btn btn-danger btn-sm" style="background: #dc3545; border-color: #dc3545;">Delete</button>
                     </div>
                 </td>

@@ -184,6 +184,7 @@ def _mock_product(product_id: str = "prod_1", currency: str = "USD") -> MagicMoc
     product.pricing_options = [pricing_option]
     product.delivery_type = "non_guaranteed"
     product.format_ids = [{"agent_url": "http://agent.test", "id": "fmt_1"}]
+    product.paused_at = None  # live; a MagicMock attribute would read as paused
     return product
 
 

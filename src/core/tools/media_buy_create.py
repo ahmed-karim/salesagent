@@ -50,6 +50,7 @@ from src.core.exceptions import (
     AdCPInvalidRequestError,
     AdCPPersistedStateError,
     AdCPProductNotFoundError,
+    AdCPProductUnavailableError,
     AdCPSalesAgentError,
     AdCPServiceUnavailableError,
     AdCPValidationError,
@@ -2273,6 +2274,15 @@ async def _create_media_buy_impl(
                 # which ids were missing (salesagent-rfxfu).
                 raise AdCPProductNotFoundError(
                     details=ProductRefDetails(missing_product_ids=sorted(missing_product_ids)),
+                    field=PACKAGES_FIELD,
+                )
+
+            # A paused product is set up but not for sale: the seller hid it from
+            # get_products, so a buy that names it is refused as unavailable, not missing.
+            paused_product_ids = sorted(pid for pid, p in product_map.items() if p.paused_at is not None)
+            if paused_product_ids:
+                raise AdCPProductUnavailableError(
+                    details=ProductRefDetails(product_id=paused_product_ids[0]),
                     field=PACKAGES_FIELD,
                 )
 

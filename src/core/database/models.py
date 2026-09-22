@@ -378,6 +378,11 @@ class Product(Base, JSONValidatorMixin):
     # Type hint: days until variant expires (null = use tenant default)
     variant_ttl_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    # Seller's pause switch. Set: hidden from buyers (get_products, capabilities) and refused in
+    # create_media_buy with PRODUCT_UNAVAILABLE; the admin UI still lists and edits it, so a
+    # product can be set up completely before it goes on sale. NULL: live.
+    paused_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     # Principal access control
     # Type hint: list of principal IDs that can see this product
     # NULL or empty means visible to all principals (default)

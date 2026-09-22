@@ -71,22 +71,26 @@ class ProductRepository:
     # ------------------------------------------------------------------
 
     def list_all(self) -> list[Product]:
-        """Get all products for the tenant, ordered by product_id.
+        """Get all products for sale, ordered by product_id.
 
+        Paused products (``paused_at`` set) are excluded: this and
+        :meth:`list_all_with_inventory` feed the buyer-facing listings. The admin UI
+        queries products directly and keeps seeing them.
         Eagerly loads pricing_options and tenant to avoid N+1 queries.
         """
         stmt = (
             select(Product)
             .options(joinedload(Product.pricing_options), joinedload(Product.tenant))
-            .where(Product.tenant_id == self._tenant_id)
+            .where(Product.tenant_id == self._tenant_id, Product.paused_at.is_(None))
             .order_by(Product.product_id)
         )
         return list(self._session.execute(stmt).unique().scalars().all())
 
     def list_all_with_inventory(self) -> list[Product]:
-        """Get all products with pricing, inventory profile, and tenant loaded.
+        """Get all products for sale with pricing, inventory profile, and tenant loaded.
 
         Used by get_product_catalog which needs full product data for conversion.
+        Paused products are excluded (see :meth:`list_all`).
         """
         stmt = (
             select(Product)
@@ -95,7 +99,7 @@ class ProductRepository:
                 selectinload(Product.inventory_profile),
                 selectinload(Product.tenant),
             )
-            .where(Product.tenant_id == self._tenant_id)
+            .where(Product.tenant_id == self._tenant_id, Product.paused_at.is_(None))
         )
         return list(self._session.scalars(stmt).all())
 

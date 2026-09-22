@@ -5,6 +5,7 @@ import json
 import logging
 import re
 import uuid
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from adcp.exceptions import ADCPConnectionError, ADCPError, ADCPTimeoutError
@@ -23,6 +24,7 @@ from src.core.database.product_pricing import get_product_pricing_options
 from src.core.database.repositories.media_buy import MediaBuyRepository
 from src.core.database.repositories.principal import PrincipalRepository
 from src.core.database.repositories.product import ProductRepository
+from src.core.database.repositories.uow import ProductUoW
 from src.core.schemas import Format
 from src.services.gam_product_config_service import GAMProductConfigService
 
@@ -572,6 +574,7 @@ def list_products(tenant_id):
 
                 product_dict = {
                     "product_id": product.product_id,
+                    "paused_at": product.paused_at,
                     "name": product.name,
                     "description": product.description,
                     "pricing_options": pricing_options_list,
@@ -2143,6 +2146,29 @@ def edit_product(tenant_id, product_id):
         logger.error(f"Error editing product: {e}", exc_info=True)
         flash(f"Error editing product: {str(e)}", "error")
         return redirect(url_for("products.list_products", tenant_id=tenant_id))
+
+
+@products_bp.route("/<product_id>/pause", methods=["POST"])
+@log_admin_action("pause_product")
+@require_tenant_access()
+def pause_product(tenant_id, product_id):
+    """Pause (``paused=1``) or resume (``paused=0``) a product.
+
+    A paused product stays listed and editable here but is hidden from buyers and
+    refused in create_media_buy, so it can be set up completely before it goes on sale.
+    """
+    pause = request.form.get("paused") == "1"
+    with ProductUoW(tenant_id) as uow:
+        assert uow.products is not None
+        product = uow.products.update_fields(product_id, paused_at=datetime.now(UTC) if pause else None)
+        name = product.name if product is not None else None
+    if name is None:
+        flash("Product not found", "error")
+    elif pause:
+        flash(f"'{name}' is paused: buyers no longer see it and cannot buy it", "success")
+    else:
+        flash(f"'{name}' is live again", "success")
+    return redirect(url_for("products.list_products", tenant_id=tenant_id))
 
 
 @products_bp.route("/<product_id>/delete", methods=["DELETE"])
