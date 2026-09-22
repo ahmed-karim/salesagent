@@ -171,7 +171,7 @@ def _extract_auth_token(headers: Mapping[str, str]) -> str | None:
     return None
 
 
-def _detect_tenant(headers: Mapping[str, str]) -> str | None:
+def _detect_tenant(headers: Mapping[str, str], *, active_only: bool = True) -> str | None:
     """The tenant_id this request names, by four header strategies. NO row is loaded.
 
     Identification only. The token check is scoped by tenant_id, so which tenant cannot be
@@ -187,16 +187,18 @@ def _detect_tenant(headers: Mapping[str, str]) -> str | None:
     2. x-adcp-tenant header -> subdomain, then the literal id
     3. Apx-Incoming-Host -> virtual host
     4. localhost -> the "default" tenant
+
+    ``active_only=False`` also matches deactivated tenants (see ``tenant_id_for``).
     """
     from src.core.config_loader import tenant_id_for
 
     host = _get_header_case_insensitive(headers, "host") or ""
 
-    tenant_id = tenant_id_for(virtual_host=host)
+    tenant_id = tenant_id_for(virtual_host=host, active_only=active_only)
     if not tenant_id and "." in host:
         subdomain = host.split(".")[0]
         if subdomain not in ["localhost", "adcp-sales-agent", "www", "admin"]:
-            tenant_id = tenant_id_for(subdomain=subdomain)
+            tenant_id = tenant_id_for(subdomain=subdomain, active_only=active_only)
 
     if not tenant_id:
         hint = _get_header_case_insensitive(headers, "x-adcp-tenant")
@@ -204,15 +206,15 @@ def _detect_tenant(headers: Mapping[str, str]) -> str | None:
             # The hint is a subdomain when one matches, and otherwise taken as the id
             # itself -- unverified, exactly as before. An id that names no tenant fails
             # later, at the principal lookup that is scoped by it.
-            tenant_id = tenant_id_for(subdomain=hint) or hint
+            tenant_id = tenant_id_for(subdomain=hint, active_only=active_only) or hint
 
     if not tenant_id:
         apx_host = _get_header_case_insensitive(headers, "apx-incoming-host")
         if apx_host:
-            tenant_id = tenant_id_for(virtual_host=apx_host)
+            tenant_id = tenant_id_for(virtual_host=apx_host, active_only=active_only)
 
     if not tenant_id and host.split(":")[0] in ["localhost", "127.0.0.1", "localhost.localdomain"]:
-        tenant_id = tenant_id_for(subdomain="default")
+        tenant_id = tenant_id_for(subdomain="default", active_only=active_only)
 
     return tenant_id
 
@@ -365,6 +367,20 @@ def _resolve_identity(
     # ever verified inside the tenant the request reached, never looked up across tenants.
     tenant_id = _detect_tenant(headers)
     tenant: TenantContext | None = TenantContext.load(tenant_id) if tenant_id else None
+
+    # Step 3a: a DEACTIVATED seller (Settings > Danger Zone). Inactive tenants are invisible
+    # to the lookups above, so without this the buyer would be told it presented a bad
+    # credential. Answer SERVICE_UNAVAILABLE instead -- here, once, so MCP, A2A and REST all
+    # get it before any credential is checked. Only requests that named no active tenant pay
+    # for the second lookup.
+    if tenant is None:
+        from src.core.config_loader import is_deactivated_tenant
+
+        named = _detect_tenant(headers, active_only=False)
+        if named and is_deactivated_tenant(named):
+            from src.core.exceptions import AdCPServiceUnavailableError
+
+            raise AdCPServiceUnavailableError(retry_after=300)
 
     # Step 3b: the SELLER's policy. A public tool's row does not require a credential, but
     # the tenant it addresses may (brand_manifest_policy "require_auth" on get_products,

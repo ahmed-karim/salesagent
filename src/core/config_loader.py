@@ -149,7 +149,9 @@ def get_tenant_by_virtual_host(virtual_host: str) -> dict[str, Any] | None:
         raise
 
 
-def tenant_id_for(*, virtual_host: str | None = None, subdomain: str | None = None) -> str | None:
+def tenant_id_for(
+    *, virtual_host: str | None = None, subdomain: str | None = None, active_only: bool = True
+) -> str | None:
     """The tenant_id matching a host or subdomain, WITHOUT loading the tenant row.
 
     Identification, not hydration. The token check is scoped by tenant_id
@@ -161,18 +163,29 @@ def tenant_id_for(*, virtual_host: str | None = None, subdomain: str | None = No
     ``serialize_tenant_to_dict`` and hand back the whole row, so identification paid for
     hydration on every request and the identity then DISCARDED that row and re-queried it on
     first field access. This selects one indexed column instead.
+
+    ``active_only=False`` also matches a deactivated tenant, so the resolver can tell a buyer
+    that the seller it addressed is unavailable rather than that it does not exist.
     """
     if not (virtual_host or subdomain):
         return None
     try:
         with get_db_session() as db_session:
             filters: dict[str, str] = {"virtual_host": virtual_host} if virtual_host else {"subdomain": subdomain or ""}
-            stmt = select(Tenant.tenant_id).filter_by(is_active=True, **filters)
+            stmt = select(Tenant.tenant_id).filter_by(**filters)
+            if active_only:
+                stmt = stmt.filter_by(is_active=True)
             return db_session.scalars(stmt).first()
     except Exception as e:
         if "no such table" in str(e) or "does not exist" in str(e):
             return None
         raise
+
+
+def is_deactivated_tenant(tenant_id: str) -> bool:
+    """Whether a tenant row with this id exists and is deactivated (``is_active`` false)."""
+    with get_db_session() as db_session:
+        return db_session.scalars(select(Tenant.is_active).filter_by(tenant_id=tenant_id)).first() is False
 
 
 def is_single_tenant_mode() -> bool:
