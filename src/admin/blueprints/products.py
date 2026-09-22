@@ -738,7 +738,11 @@ def add_product(tenant_id):
         # Get tenant's supported currencies from currency_limits
         from src.core.database.models import CurrencyLimit
 
-        currency_limits = db_session.scalars(select(CurrencyLimit).filter_by(tenant_id=tenant_id)).all()
+        currency_limits = db_session.scalars(
+            select(CurrencyLimit)
+            .filter_by(tenant_id=tenant_id)
+            .order_by(CurrencyLimit.created_at, CurrencyLimit.currency_code)
+        ).all()
         currencies = [limit.currency_code for limit in currency_limits]
         # Default to USD if no currencies configured
         if not currencies:
@@ -1374,7 +1378,11 @@ def edit_product(tenant_id, product_id):
         # Get tenant's supported currencies from currency_limits
         from src.core.database.models import CurrencyLimit
 
-        currency_limits = db_session.scalars(select(CurrencyLimit).filter_by(tenant_id=tenant_id)).all()
+        currency_limits = db_session.scalars(
+            select(CurrencyLimit)
+            .filter_by(tenant_id=tenant_id)
+            .order_by(CurrencyLimit.created_at, CurrencyLimit.currency_code)
+        ).all()
         currencies = [limit.currency_code for limit in currency_limits]
         # Default to USD if no currencies configured
         if not currencies:
