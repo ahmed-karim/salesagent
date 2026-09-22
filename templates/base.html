@@ -186,6 +186,12 @@
         </div>
     </div>
     <div class="container">
+        {% if tenant is defined and tenant and tenant.is_active is sameas false %}
+        <div class="alert alert-warning" role="status">
+            ⏸️ <strong>This sales agent is deactivated.</strong> Buyer agents are being refused.
+            <a href="{{ script_name }}/tenant/{{ tenant.tenant_id }}/settings/danger-zone">Reactivate it in Settings → Danger Zone</a>.
+        </div>
+        {% endif %}
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 <div class="flash-messages">

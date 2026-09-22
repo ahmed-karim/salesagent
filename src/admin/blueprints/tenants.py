@@ -531,6 +531,26 @@ def test_slack(tenant_id):
         return jsonify({"success": False, "error": "Internal server error"}), 500
 
 
+def notify_slack_of_activation(tenant_id: str, tenant_name: str, webhook_url: str | None, *, active: bool) -> None:
+    """Post "deactivated" / "reactivated" to the tenant's Slack channel, best effort.
+
+    The change is already committed, so a Slack failure is logged and never reported as a
+    failed switch. Takes plain values, not the Tenant row: the delivery is recorded through its
+    own database session, which detaches rows the caller's session still holds.
+    """
+    if not webhook_url:
+        return
+    state = "reactivated" if active else "deactivated"
+    try:
+        SlackNotifier(webhook_url=webhook_url).send_message(
+            text=f"{'▶️' if active else '⏸️'} {tenant_name}: sales agent {state} by {session.get('user', 'unknown')}",
+            tenant_id=tenant_id,
+            max_retries=1,
+        )
+    except Exception as e:
+        logger.warning(f"Tenant {tenant_id} {state} but the Slack notice failed: {e}")
+
+
 @tenants_bp.route("/<tenant_id>/deactivate", methods=["POST"])
 @log_admin_action("deactivate_tenant")
 @require_tenant_access()
@@ -566,15 +586,18 @@ def deactivate_tenant(tenant_id):
             logger.info(f"Tenant {tenant_id} ({tenant.name}) deactivated by user {session.get('user', 'unknown')}")
 
             # The audit row is written by @log_admin_action (AuditLogger has no log_security_event).
+            tenant_name = tenant.name
+            notify_slack_of_activation(tenant_id, tenant_name, tenant.slack_webhook_url, active=False)
+
             # A super admin can still sign in and reactivate, so they stay on the page; anyone
             # else has just lost access to this tenant, so their session ends.
             if signed_in_user_is_super_admin():
-                flash(f"Sales agent '{tenant.name}' has been deactivated. All data is preserved.", "warning")
+                flash(f"Sales agent '{tenant_name}' has been deactivated. All data is preserved.", "warning")
                 return redirect(url_for("tenants.tenant_settings", tenant_id=tenant_id, section="danger-zone"))
 
             session.clear()
             flash(
-                f"Sales agent '{tenant.name}' has been deactivated. "
+                f"Sales agent '{tenant_name}' has been deactivated. "
                 "All data is preserved. Contact support to reactivate.",
                 "success",
             )

@@ -84,15 +84,20 @@ def _extract_tenant_subdomain(tenant_row: dict, virtual_host: str | None = None)
     return tenant_row.get("tenant_id")
 
 
-def _generate_pending_configuration_page(tenant_row: dict, virtual_host: str | None = None) -> str:
-    """Generate pending configuration page for unconfigured tenants.
+def _generate_notice_page(
+    tenant_row: dict,
+    virtual_host: str | None,
+    *,
+    title: str,
+    icon: str,
+    body_html: str,
+    link_text: str,
+) -> str:
+    """One-card notice page shared by the "pending configuration" and "deactivated"
+    states: no endpoint URLs, a sign-in link for the operator.
 
-    Args:
-        tenant_row: Tenant data from database, as ``serialize_tenant_to_dict`` shapes it
-        virtual_host: Virtual host domain if applicable
-
-    Returns:
-        Simple HTML page indicating pending configuration
+    ``body_html`` is trusted markup built by this module; tenant-derived strings
+    inside it must already be escaped by the caller.
     """
     tenant_name = html.escape(tenant_row.get("name", "Unknown Publisher"))
     tenant_id = tenant_row.get("tenant_id", "default")
@@ -103,7 +108,7 @@ def _generate_pending_configuration_page(tenant_row: dict, virtual_host: str | N
     <!DOCTYPE html>
     <html lang="en">
     <head>
-        <title>{tenant_name} - Pending Configuration</title>
+        <title>{tenant_name} - {title}</title>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
@@ -173,22 +178,16 @@ def _generate_pending_configuration_page(tenant_row: dict, virtual_host: str | N
     </head>
     <body>
         <div class="container">
-            <div class="icon">⚙️</div>
-            <h1>Pending Configuration</h1>
+            <div class="icon">{icon}</div>
+            <h1>{title}</h1>
             <p class="subtitle">{tenant_name}</p>
 
             <div class="message">
-                <p><strong>This sales agent is not yet configured.</strong></p>
-                <p>To activate this agent, the owner needs to:</p>
-                <ul style="text-align: left; margin: 1rem 0;">
-                    <li>Connect an ad server (Google Ad Manager, Kevel, etc.)</li>
-                    <li>Configure inventory and products</li>
-                    <li>Complete initial setup</li>
-                </ul>
+                {body_html}
             </div>
 
             <a href="{html.escape(admin_url)}" class="admin-link">
-                Sign In to Configure →
+                {link_text} →
             </a>
 
             <div class="footer">
@@ -198,6 +197,50 @@ def _generate_pending_configuration_page(tenant_row: dict, virtual_host: str | N
     </body>
     </html>
     """
+
+
+def _generate_pending_configuration_page(tenant_row: dict, virtual_host: str | None = None) -> str:
+    """Generate pending configuration page for unconfigured tenants.
+
+    Args:
+        tenant_row: Tenant data from database, as ``serialize_tenant_to_dict`` shapes it
+        virtual_host: Virtual host domain if applicable
+
+    Returns:
+        Simple HTML page indicating pending configuration
+    """
+    return _generate_notice_page(
+        tenant_row,
+        virtual_host,
+        title="Pending Configuration",
+        icon="⚙️",
+        body_html="""<p><strong>This sales agent is not yet configured.</strong></p>
+                <p>To activate this agent, the owner needs to:</p>
+                <ul style="text-align: left; margin: 1rem 0;">
+                    <li>Connect an ad server (Google Ad Manager, Kevel, etc.)</li>
+                    <li>Configure inventory and products</li>
+                    <li>Complete initial setup</li>
+                </ul>""",
+        link_text="Sign In to Configure",
+    )
+
+
+def _generate_deactivated_page(tenant_row: dict, virtual_host: str | None = None) -> str:
+    """Notice shown while the sales agent is deactivated (``Tenant.is_active`` false).
+
+    No endpoint URLs: a deactivated seller should not advertise what it will refuse.
+    """
+    tenant_name = html.escape(tenant_row.get("name", "This sales agent"))
+    return _generate_notice_page(
+        tenant_row,
+        virtual_host,
+        title="Not Accepting Requests",
+        icon="⏸️",
+        body_html=f"""<p><strong>{tenant_name} is not currently accepting requests.</strong></p>
+                <p>Buyer agents receive <code>SERVICE_UNAVAILABLE</code> until it is reactivated.
+                Please try again later.</p>""",
+        link_text="Sign In",
+    )
 
 
 def generate_tenant_landing_page(tenant_row: dict, virtual_host: str | None = None) -> str:
@@ -217,6 +260,11 @@ def generate_tenant_landing_page(tenant_row: dict, virtual_host: str | None = No
     from src.core.tenant_status import is_tenant_ad_server_configured
 
     tenant_id = tenant_row.get("tenant_id")
+
+    # Deactivation comes first: a deactivated agent shows the notice even when
+    # fully configured, and never lists endpoints it will refuse.
+    if tenant_row.get("is_active") is False:
+        return _generate_deactivated_page(tenant_row, virtual_host)
     is_configured = is_tenant_ad_server_configured(tenant_id) if tenant_id else False
 
     # If not configured, show pending configuration page

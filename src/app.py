@@ -36,7 +36,7 @@ from src.core.agent_identity import agent_identity_for_tenant_id
 from src.core.auth_middleware import AuthChallengeResponder
 from src.core.config import load_settings
 from src.core.domain_config import get_a2a_server_url, get_sales_agent_domain
-from src.core.domain_routing import route_landing_page
+from src.core.domain_routing import deactivated_tenant_for, route_landing_page
 from src.core.errors.issues import issues_from_validation_error
 from src.core.exceptions import AdCPInvalidRequestError, AdCPSalesAgentError
 from src.core.http_utils import get_header_case_insensitive as _get_header_case_insensitive
@@ -682,6 +682,12 @@ async def _handle_landing_page(request: Request):
                     f"Error generating landing page for {result.tenant.get('name', 'tenant')}"
                 )
             )
+
+    # A deactivated tenant's host gets its notice, not "not configured"
+    deactivated = await asyncio.to_thread(deactivated_tenant_for, result)
+    if deactivated:
+        html_content = await asyncio.to_thread(generate_tenant_landing_page, deactivated, result.effective_host)
+        return HTMLResponse(content=html_content)
 
     # Custom domain not configured for any tenant
     if result.type == "custom_domain":

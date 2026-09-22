@@ -110,3 +110,34 @@ def route_landing_page(request_headers: dict) -> RoutingResult:
     subdomain = extract_subdomain_from_host(effective_host)
     tenant = get_tenant_by_subdomain(subdomain) if subdomain else None
     return RoutingResult("subdomain", tenant, effective_host)
+
+
+def deactivated_tenant_for(result: RoutingResult) -> dict | None:
+    """The deactivated tenant a tenant-less routing result's host names, for its landing notice.
+
+    ``route_landing_page``'s lookups see active tenants only, so without this a deactivated
+    tenant's own host would read as "not configured". Kept apart from ``route_landing_page``
+    because its other callers (the agent card) must keep treating the host as tenant-less.
+    """
+    if result.tenant is not None or result.type not in ("custom_domain", "subdomain"):
+        return None
+
+    from src.core.database.database_session import get_db_session
+    from src.core.database.repositories import TenantLookupRepository
+
+    with get_db_session() as db_session:
+        lookup = TenantLookupRepository(db_session)
+        if result.type == "custom_domain":
+            row = lookup.find_by_virtual_host(result.effective_host)
+        else:
+            subdomain = extract_subdomain_from_host(result.effective_host)
+            row = lookup.find_by_subdomain(subdomain) if subdomain else None
+        if row is None or row.is_active:
+            return None
+        return {
+            "tenant_id": row.tenant_id,
+            "name": row.name,
+            "subdomain": row.subdomain,
+            "virtual_host": row.virtual_host,
+            "is_active": False,
+        }

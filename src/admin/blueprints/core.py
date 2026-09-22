@@ -227,6 +227,7 @@ def index():
                 "name": tenant.name,
                 "subdomain": tenant.subdomain,
                 "virtual_host": tenant.virtual_host,
+                "is_active": tenant.is_active,
             }
             html_content = generate_tenant_landing_page(tenant_dict, effective_host)
             return Response(html_content, mimetype="text/html")
@@ -567,7 +568,12 @@ def reactivate_tenant(tenant_id):
                 f"Tenant {tenant_id} ({tenant.name}) reactivated by super admin {session.get('user', 'unknown')}"
             )
 
-            flash(f"Sales agent '{tenant.name}' has been reactivated successfully", "success")
+            from src.admin.blueprints.tenants import notify_slack_of_activation
+
+            tenant_name = tenant.name
+            notify_slack_of_activation(tenant_id, tenant_name, tenant.slack_webhook_url, active=True)
+
+            flash(f"Sales agent '{tenant_name}' has been reactivated successfully", "success")
             return redirect(danger_zone)
 
     except Exception as e:
