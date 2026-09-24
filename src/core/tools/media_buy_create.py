@@ -502,8 +502,8 @@ def _validate_creatives_before_adapter_call(
         product_format_map: dict[str, set[str]] = {}
         for product in products_list:
             accepted_formats: set[str] = set()
-            if product.format_ids:
-                for fmt in product.format_ids:
+            if product.effective_format_ids:
+                for fmt in product.effective_format_ids:
                     fmt_id = fmt.get("id")
                     if fmt_id:
                         accepted_formats.add(str(fmt_id))
@@ -1007,7 +1007,10 @@ def execute_approved_media_buy(
                     stmt_product = (
                         select(ProductModel)
                         .filter_by(tenant_id=tenant_id, product_id=product_id)
-                        .options(selectinload(ProductModel.pricing_options))
+                        .options(
+                            selectinload(ProductModel.pricing_options),
+                            selectinload(ProductModel.inventory_profile),
+                        )
                     )
                     product = session.scalars(stmt_product).first()
 
@@ -1105,7 +1108,7 @@ def execute_approved_media_buy(
 
                     # Convert formats to FormatId objects with comprehensive validation
                     format_ids_list: list[FormatId] = []
-                    formats = product.format_ids or []
+                    formats = product.effective_format_ids or []
 
                     logger.debug(f"[APPROVAL] Converting {len(formats)} formats for package {package_id}")
 

@@ -273,7 +273,7 @@ def _validate_creatives_for_assignment(
         )
 
     # (c) Format compatibility against the package's product.
-    if product is None or not product.format_ids:
+    if product is None or not product.effective_format_ids:
         # No product or no declared formats — no format restriction.
         return
 
@@ -282,7 +282,7 @@ def _validate_creatives_for_assignment(
     # Identity is (canonical agent_url, id) per the pinned core/format-id.json, asked of
     # format_resolver so this path and the sync-creatives assignment path cannot disagree
     # about whether a creative's format is one the product declares.
-    supported_formats = product_format_identities(product.format_ids)
+    supported_formats = product_format_identities(product.effective_format_ids)
     if not supported_formats:
         return  # No usable format restrictions — allow all.
 

@@ -1068,6 +1068,7 @@ class TestUC003UpdateCreativeIds:
             # Product with no format restriction (to isolate the status check).
             mock_product = MagicMock()
             mock_product.format_ids = []
+            mock_product.effective_format_ids = mock_product.format_ids
             mock_product.name = "Test Product"
             env.mock["uow"].return_value.products.get_by_id.return_value = mock_product
 
@@ -1093,6 +1094,7 @@ class TestUC003UpdateCreativeIds:
 
             mock_product = MagicMock()
             mock_product.format_ids = []
+            mock_product.effective_format_ids = mock_product.format_ids
             mock_product.name = "Test Product"
             env.mock["uow"].return_value.products.get_by_id.return_value = mock_product
 
@@ -1132,6 +1134,7 @@ class TestUC003UpdateCreativeIds:
             # Product with only "display" format
             mock_product = MagicMock()
             mock_product.format_ids = [{"agent_url": "http://test.com", "id": "display"}]
+            mock_product.effective_format_ids = mock_product.format_ids
             mock_product.name = "Display Product"
             uow.products.get_by_id.return_value = mock_product
 
@@ -1181,6 +1184,7 @@ class TestUC003UpdateCreativeIds:
 
             mock_product = MagicMock()
             mock_product.format_ids = []  # no restriction
+            mock_product.effective_format_ids = mock_product.format_ids
             mock_product.name = "Test Product"
             uow.products.get_by_id.return_value = mock_product
 
@@ -2237,6 +2241,7 @@ class TestUC003ExtJ:
 
             mock_product = MagicMock()
             mock_product.format_ids = []
+            mock_product.effective_format_ids = mock_product.format_ids
             mock_product.name = "Test Product"
             uow.products.get_by_id.return_value = mock_product
 
@@ -2286,6 +2291,7 @@ class TestUC003ExtJ:
 
             mock_product = MagicMock()
             mock_product.format_ids = []
+            mock_product.effective_format_ids = mock_product.format_ids
             mock_product.name = "Test Product"
             uow.products.get_by_id.return_value = mock_product
 

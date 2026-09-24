@@ -184,6 +184,7 @@ def _mock_product(product_id: str = "prod_1", currency: str = "USD") -> MagicMoc
     product.pricing_options = [pricing_option]
     product.delivery_type = "non_guaranteed"
     product.format_ids = [{"agent_url": "http://agent.test", "id": "fmt_1"}]
+    product.effective_format_ids = product.format_ids
     product.paused_at = None  # live; a MagicMock attribute would read as paused
     return product
 
@@ -999,6 +1000,7 @@ class TestCreateMediaBuyCreativeValidation:
         mock_product = MagicMock()
         mock_product.product_id = "prod_display"
         mock_product.format_ids = [{"agent_url": "http://agent.test", "id": "display_300x250"}]
+        mock_product.effective_format_ids = mock_product.format_ids
 
         package = MagicMock()
         package.creative_ids = ["c_mismatch"]
@@ -2009,6 +2011,7 @@ class TestUpdateMediaBuyCreativeIds:
 
         mock_product = MagicMock()
         mock_product.format_ids = []
+        mock_product.effective_format_ids = mock_product.format_ids
         mock_product.placements = None
 
         with (
@@ -2173,6 +2176,7 @@ class TestUpdateMediaBuyCreativeIds:
 
         mock_product = MagicMock()
         mock_product.format_ids = [{"agent_url": "http://agent.test", "id": "display_300x250"}]
+        mock_product.effective_format_ids = mock_product.format_ids
         mock_product.name = "Test Product"
         mock_product.placements = None
 
@@ -2259,6 +2263,7 @@ class TestUpdateMediaBuyCreativeIds:
 
         mock_product = MagicMock()
         mock_product.format_ids = [{"agent_url": "http://agent.test", "id": "display_300x250"}]
+        mock_product.effective_format_ids = mock_product.format_ids
         mock_product.name = "Test Product"
         mock_product.placements = None
 
@@ -2361,6 +2366,7 @@ class TestUpdateMediaBuyCreativeIds:
 
         mock_product = MagicMock()
         mock_product.format_ids = []
+        mock_product.effective_format_ids = mock_product.format_ids
         mock_product.placements = None
 
         with (

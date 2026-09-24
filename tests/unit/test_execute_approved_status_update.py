@@ -92,6 +92,9 @@ def _make_mock_product():
     product.name = "Test Product"
     product.delivery_type = "non_guaranteed"
     product.format_ids = [{"agent_url": "https://example.com/formats", "format_id": "fmt_1", "id": "fmt_1"}]
+    # Profile-aware accessor the approval path reads; a MagicMock would otherwise answer
+    # a truthy, empty iterable and the reconstruction would refuse the product.
+    product.effective_format_ids = product.format_ids
 
     # Set up pricing option
     pricing_option = MagicMock()
